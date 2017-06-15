@@ -5,7 +5,8 @@ library(ggplot2)
 library(learnr)
 library(reshape2)
 
-hmp = read.csv('data/hmp_tongue_stool.csv', header=1, row.names = 1, check.names = F, as.is = T)
+hmp = read.csv('data/hmp_tongue_stool.csv', header=1, row.names=1, check.names = F, as.is = T)
+map = read.delim('data/hmp_tonguestool_map.txt', sep = '\t', header=1)
 hmp = data.frame(t(hmp))
 hmp = hmp %>% setNames(sub('k__', '', names(.))) %>%
   setNames(sub('.p__', ';', names(.))) %>%
@@ -66,6 +67,68 @@ hmp.species = hmp.split %>% group_by(SampleID, species) %>%
 hmp.strain = hmp.split %>% group_by(SampleID, strain) %>%
   summarise(p_abundance = sum(abundance)) %>%
   spread(strain, p_abundance)
+
+# Function that takes the matrix, does beta div, and plots/colors by body site
+plot_beta_div = function(x) {
+  plot.df = x
+  rownames(plot.df) = NULL
+  plot_df = tibble::column_to_rownames(plot_df, var = 'SampleID')
+  beta = as.matrix(vegdist(plot_df, method='bray', na.rm = F))
+  pcoa = cmdscale(beta, k=2)
+  pcoa = as_data_frame(pcoa)
+  pcnames = c()
+  for(i in 1:ncol(pcoa)){
+    pcnames[i] <- paste("PC",i, sep="")
+  }
+  colnames(pcoa) = pcnames
+  pcoa$SampleID = rownames(plot_df)
+  pcoa = pcoa %>% left_join(map)
+  
+  ggplot(pcoa, aes(x=PC1, y=PC2, color=body_site)) +
+    geom_point(size = 2) +
+    theme_bw() + labs(x='PC1', y='PC2') +
+    theme(panel.background = element_blank(), 
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          plot.title = element_text(size = 10), 
+          axis.ticks = element_line(),
+          legend.title = element_blank(),
+          legend.key.size = unit(0.2, "in"),
+          legend.text = element_text(size=9),
+          legend.position = 'right',
+          axis.text = element_text(size=8),
+          axis.title = element_text(size=9))
+}
+
+# row.names(hmp.genus) = NULL
+# hmp.genus = tibble::column_to_rownames(hmp.genus, var = 'SampleID')
+# beta = as.matrix(vegdist(hmp.genus, method='bray', na.rm = F))
+# pcoa = cmdscale(beta, k=2)
+# pcoa = as_data_frame(pcoa)
+# pcnames = c()
+# for(i in 1:ncol(pcoa)){
+#   pcnames[i] <- paste("PC",i, sep="")
+# }
+# colnames(pcoa) = pcnames
+# pcoa$SampleID = rownames(hmp.genus)
+# pcoa = pcoa %>% left_join(map)
+
+p = ggplot(pcoa, aes(x=PC1, y=PC2, color=body_site)) +
+  geom_point(size = 2) +
+  theme_bw() + labs(x='PC1', y='PC2') +
+  theme(panel.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        plot.title = element_text(size = 10),
+        axis.ticks = element_line(),
+        legend.title = element_blank(),
+        legend.key.size = unit(0.2, "in"),
+        legend.text = element_text(size=9),
+        legend.position = 'right',
+        axis.text = element_text(size=8),
+        axis.title = element_text(size=9)) +
+ coord_fixed()
+p
 
 
 

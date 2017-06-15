@@ -1,0 +1,176 @@
+---
+title: "Taxonomic Rank and Beta Diversity"
+author: "Robin Shields-Cutler"
+date: "6/15/2017"
+output: html_document
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE,                      # don't show R code in non-exercise chunks
+  fig.align = "center",             # center plots on the page
+  fig.width = 6, fig.height = 4.5   # default figure size
+  )
+
+# Load the packages
+library(dplyr)
+library(tidyr)
+library(vegan)
+library(ggplot2)
+# library(learnr)
+
+# Read and parse the data
+setwd("~/Box Sync/Macalester/CVC_workshop/mb_viz_project/")
+
+hmp = read.csv('data/hmp_tongue_stool.csv', header=1, row.names=1, check.names = F, as.is = T)
+map = read.delim('data/hmp_tonguestool_map.txt', sep = '\t', header=1)
+hmp = data.frame(t(hmp))
+hmp = hmp %>% setNames(sub('k__', '', names(.))) %>%
+  setNames(sub('.p__', ';', names(.))) %>%
+  setNames(sub('.c__', ';', names(.))) %>%
+  setNames(sub('.o__', ';', names(.))) %>%
+  setNames(sub('.f__', ';', names(.))) %>%
+  setNames(sub('.g__', ';', names(.))) %>%
+  setNames(sub('.s__', ';', names(.))) %>%
+  setNames(sub('.t__', ';', names(.)))
+
+hmp[is.na(hmp)] = 0
+
+depths = rowSums(hmp)
+#hist(depths,breaks=30)
+otu.counts = colSums(hmp > 0)
+#hist(otu.counts, breaks=30)
+
+# Remove rare taxa
+hmp = hmp[,colMeans(hmp > 0) >= 0.1]
+#dim(hmp)
+otu.counts = colSums(hmp > 0)
+#hist(otu.counts, breaks=30)
+
+# Remove samples with low depth
+depths = rowSums(hmp)
+#sort(depths)[1:10]
+hmp = hmp[depths >= 100000,]
+#dim(hmp)
+
+hmp = tibble::rownames_to_column(hmp, var = 'SampleID')
+hmp.tall = hmp %>% gather(key='organism', value='abundance', 2:as.numeric(ncol(hmp)))
+hmp.split = hmp.tall %>% separate(organism, c('kingdom','phylum','class','order','family','genus','species','strain'), sep = ';')
+
+hmp.phylum = hmp.split %>% group_by(SampleID, phylum) %>%
+  summarise(p_abundance = sum(abundance)) %>%
+  spread(phylum, p_abundance)
+
+hmp.class = hmp.split %>% group_by(SampleID, class) %>%
+  summarise(p_abundance = sum(abundance)) %>%
+  spread(class, p_abundance)
+
+hmp.order = hmp.split %>% group_by(SampleID, order) %>%
+  summarise(p_abundance = sum(abundance)) %>%
+  spread(order, p_abundance)
+
+hmp.family = hmp.split %>% group_by(SampleID, family) %>%
+  summarise(p_abundance = sum(abundance)) %>%
+  spread(family, p_abundance)
+
+hmp.genus = hmp.split %>% group_by(SampleID, genus) %>%
+  summarise(p_abundance = sum(abundance)) %>%
+  spread(genus, p_abundance)
+
+hmp.species = hmp.split %>% group_by(SampleID, species) %>%
+  summarise(p_abundance = sum(abundance)) %>%
+  spread(species, p_abundance)
+
+hmp.strain = hmp.split %>% group_by(SampleID, strain) %>%
+  summarise(p_abundance = sum(abundance)) %>%
+  spread(strain, p_abundance)
+
+beta_div = function(plot.df) {
+  rownames(plot.df) = NULL
+  plot.df = tibble::column_to_rownames(plot.df, var = 'SampleID')
+  beta = as.matrix(vegdist(plot.df, method='bray', na.rm = F))
+  pcoa = cmdscale(beta, k=2)
+  pcoa = as_data_frame(pcoa)
+  pcnames = c()
+  for(i in 1:ncol(pcoa)){
+    pcnames[i] <- paste("PC",i, sep="")
+  }
+  colnames(pcoa) = pcnames
+  pcoa$SampleID = rownames(plot.df)
+  pcoa = pcoa %>% left_join(map)
+}
+
+rank_list = list(hmp.phylum, hmp.class, hmp.order, hmp.family, hmp.genus, hmp.species, hmp.strain)
+beta_results = vector('list', 7)
+i = 1
+for (x in rank_list) {
+  # x = rank_list[[n]]
+  beta_results[[i]] = beta_div(plot.df = x)
+  i = i + 1
+}
+
+beta_plot = function(level) {
+  pcoa = beta_results[[level]]
+  ggplot(pcoa, aes(x=PC1, y=PC2, color=body_site)) +
+    geom_point(size = 6, alpha = 0.9) +
+    theme_bw() + labs(x='PC1', y='PC2') +
+    theme(panel.background = element_blank(), 
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          axis.ticks = element_line(),
+          legend.title = element_blank(),
+          legend.text = element_text(size=17),
+          legend.position = 'right',
+          axis.text = element_text(size=15),
+          axis.title = element_text(size=17)) +
+     coord_fixed()
+}
+
+```
+
+
+## Human Microbiome Project: Tongue vs Stool
+
+Perhaps unsurprisingly, the microbial community is dramatically different between the human tongue and feces---which are used as a proxy for the gastrointestinal tract. Use the menu below to see how well these two environments are distinguished at increasing taxonomic rank. That is, while the exact species may differ, are they still different when you summarize back to the level of Order?
+
+```{r eruptions, echo=FALSE, out.width = "80%"}
+inputPanel(
+  selectInput("rank", label = "Summarize at which taxonomic rank:",
+              choices = c('phylum','class','order','family','genus','species','strain'), selected = 'genus')
+  
+  # sliderInput("bw_adjust", label = "Bandwidth adjustment:",
+  #             min = 0.2, max = 2, value = 1, step = 0.2)
+)
+
+renderPlot({
+  if (input$rank == 'phylum') {
+    t = 1
+  } else if (input$rank == 'class') {
+      t = 2
+  } else if (input$rank == 'order') {
+      t = 3
+  } else if (input$rank == 'family') {
+      t = 4
+  } else if (input$rank == 'genus') {
+      t = 5
+  } else if (input$rank == 'species') {
+      t = 6
+  } else if (input$rank == 'strain') {
+      t = 7
+  }
+
+  beta_plot(level = t)
+  
+})
+```
+
+## What do you think?
+
+Why are the communities in these environments so different? What environmental factors could be important in driving these differences?
+
+
+##### Data processing details
+
+The data for this project was accessed from HMP raw shotgun sequence data, quality filtered with [shi7](https://github.com/knights-lab/shi7/releases), and taxonomy was assigned with a development version of [SHOGUN](https://github.com/knights-lab/SHOGUN) Utree (k-mer based last common ancestor). The resulting OTU table was filtered for low-read samples, rare (10%) taxa, and beta diversity was calculated using the Bray-Curtis distance with the `vegan` package in `R`.
+
