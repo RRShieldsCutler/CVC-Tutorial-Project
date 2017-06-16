@@ -9,7 +9,7 @@ Requires several packages from the `tidyverse` and RStudio.
 
 I used a neat trick from the `tidyverse` packages to create each table
 
-```javascript
+```R
 # Melt to long form
 hmp.tall = hmp %>% gather(key='organism', value='abundance', 2:as.numeric(ncol(hmp)))
 
