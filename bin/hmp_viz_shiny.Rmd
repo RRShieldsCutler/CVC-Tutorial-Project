@@ -18,13 +18,13 @@ library(dplyr)
 library(tidyr)
 library(vegan)
 library(ggplot2)
-# library(learnr)
 
 # Read and parse the data
-setwd("~/Box Sync/Macalester/CVC_workshop/mb_viz_project/")
+setwd("./")
 
-hmp = read.csv('data/hmp_tongue_stool.csv', header=1, row.names=1, check.names = F, as.is = T)
-map = read.delim('data/hmp_tonguestool_map.txt', sep = '\t', header=1)
+hmp = read.csv(url('https://github.com/RRShieldsCutler/CVC-Tutorial-Project/raw/master/data/hmp_tongue_stool.csv'), header=1, row.names=1, check.names = F, as.is = T)
+map = read.delim(url('https://github.com/RRShieldsCutler/CVC-Tutorial-Project/raw/master/data/hmp_tonguestool_map.txt'), sep = '\t', header=1)
+
 hmp = data.frame(t(hmp))
 hmp = hmp %>% setNames(sub('k__', '', names(.))) %>%
   setNames(sub('.p__', ';', names(.))) %>%
