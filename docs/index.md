@@ -1,4 +1,9 @@
-# CVC Tutorial Project
+---
+title: A taxonomic exploration using the Human Microbiome Project
+author: Robin Shields-Cutler
+---
+
+## CVC Tutorial Project
 Data processing and visualization project from CVC 2017
 
 A `shiny` document that loads the HMP taxa table, processes and filters OTUs, then calculates beta diversity for each collapsed level of taxonomy.
