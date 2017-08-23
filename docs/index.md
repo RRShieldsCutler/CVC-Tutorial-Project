@@ -21,3 +21,4 @@ hmp.phylum = hmp.split %>% group_by(SampleID, phylum) %>%
   summarise(p_abundance = sum(abundance)) %>%
   spread(phylum, p_abundance)
 ```
+Trying a link to (new page)[page1.html]
